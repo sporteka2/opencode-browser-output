@@ -1,19 +1,19 @@
 # opencode-browser-output
 
-Плагин для opencode, открывающий финальный ответ ассистента в браузере.
+Plugin for opencode that opens the final assistant output in a browser window.
 
-## Зачем
+## Why
 
-Полезен при маленьком экране: не нужно прокручивать терминал вверх, чтобы прочитать весь ответ. Плагин открывает финальный ответ в отдельном окне браузера.
+Useful when you have a small screen: no need to keep scrolling up in the terminal to read the full output. The plugin opens the final response in a separate browser window.
 
-## Возможности
+## Features
 
-- Открывает **только последний** финальный ответ (не промежуточные шаги)
-- Открывает в **новом окне** Firefox (`--new-window`)
+- Opens only the **final** assistant response (not intermediate steps)
+- Opens in a **new browser window** (Firefox `--new-window`)
 
-## Установка
+## Installation
 
-Добавьте в конфиг opencode:
+Add to your opencode config:
 
 ```json
 {
@@ -23,7 +23,7 @@
 }
 ```
 
-Или укажите локальный путь:
+Or reference by local path:
 
 ```json
 {
@@ -33,19 +33,19 @@
 }
 ```
 
-## Как работает
+## How it works
 
-1. Слушает события `message.part.updated`
-2. Накапливает текстовые части ответов ассистента
-3. При завершении сессии (`session.idle`) берет последний завершённый ответ
-4. Создаёт HTML-файл с текстом
-5. Открывает его в Firefox с флагом `--new-window`
+1. Listens for `message.part.updated` events
+2. Accumulates text parts from assistant messages
+3. On `session.idle` (session complete), takes the last finished message
+4. Creates an HTML file with the text
+5. Opens it in Firefox with `--new-window`
 
-## Требования
+## Requirements
 
-- Firefox (`firefox-bin`, `firefox` или `firefox-dev` в PATH)
+- Firefox (`firefox-bin`, `firefox`, or `firefox-dev` in PATH)
 - Linux/macOS/Windows (fallback: `xdg-open` / `open` / `start`)
 
-## Лицензия
+## License
 
 MIT
