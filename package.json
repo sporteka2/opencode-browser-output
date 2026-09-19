@@ -1,0 +1,20 @@
+{
+  "name": "opencode-plugin-browser-output",
+  "version": "1.0.0",
+  "description": "Opencode plugin that opens the final assistant output in a browser window with clickable links",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "browser",
+    "output"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "@opencode-ai/plugin": "*"
+  }
+}
