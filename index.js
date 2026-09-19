@@ -46,16 +46,9 @@ function openInBrowser(content) {
   if (process.platform === "win32") {
     cmd = `start "" "${file}"`;
   } else if (process.platform === "darwin") {
-    cmd = `open -n "${file}"`;
+    cmd = `open "${file}"`;
   } else {
-    const firefox = ["/usr/bin/firefox-bin", "firefox", "firefox-dev"].find((b) =>
-      b.includes("/") ? require("fs").existsSync(b) : require("child_process").execSync(`which ${b}`).toString().trim(),
-    );
-    if (firefox) {
-      cmd = `"${firefox}" --new-window "file://${file}"`;
-    } else {
-      cmd = `xdg-open "${file}"`;
-    }
+    cmd = `xdg-open "${file}"`;
   }
   try {
     execSync(cmd, { timeout: 10000 });
