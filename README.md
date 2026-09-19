@@ -9,7 +9,6 @@ Useful when you have a small screen: no need to keep scrolling up in the termina
 ## Features
 
 - Opens only the **final** assistant response (not intermediate steps)
-- Opens in a **new browser window** (Firefox `--new-window`)
 
 ## Installation
 
@@ -39,7 +38,7 @@ Or reference by local path:
 2. Accumulates text parts from assistant messages
 3. On `session.idle` (session complete), takes the last finished message
 4. Creates an HTML file with the text
-5. Opens it in Firefox with `--new-window`
+5. Opens it in the system default browser
 
 ## Requirements
 
