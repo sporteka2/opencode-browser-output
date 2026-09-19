@@ -1,51 +1,51 @@
-# opencode-plugin-browser-output
+# opencode-browser-output
 
-Opencode plugin that opens the final assistant output in a browser window.
+Плагин для opencode, открывающий финальный ответ ассистента в браузере.
 
-## Why
+## Зачем
 
-Useful when you have a small screen and don't want to keep scrolling up in the terminal to see the full output. The plugin opens the final response in a browser window where it's easier to read.
+Полезен при маленьком экране: не нужно прокручивать терминал вверх, чтобы прочитать весь ответ. Плагин открывает финальный ответ в отдельном окне браузера.
 
-## Features
+## Возможности
 
-- Opens only the **final** assistant response (not intermediate steps)
-- Opens in a **new browser window** (Firefox `--new-window`)
+- Открывает **только последний** финальный ответ (не промежуточные шаги)
+- Открывает в **новом окне** Firefox (`--new-window`)
 
-## Installation
+## Установка
 
-Add to your opencode config:
-
-```json
-{
-  "plugin": [
-    "opencode-plugin-browser-output"
-  ]
-}
-```
-
-Or install globally and reference by path:
+Добавьте в конфиг opencode:
 
 ```json
 {
   "plugin": [
-    "/path/to/opencode-plugin-browser-output"
+    "opencode-browser-output"
   ]
 }
 ```
 
-## How it works
+Или укажите локальный путь:
 
-1. Listens for `message.part.updated` events
-2. Accumulates text parts from assistant messages
-3. On `session.idle` (session complete), takes the last finished message
-4. Creates an HTML file with the text
-5. Opens it in Firefox with `--new-window`
+```json
+{
+  "plugin": [
+    "/path/to/opencode-browser-output"
+  ]
+}
+```
 
-## Requirements
+## Как работает
 
-- Firefox (`firefox-bin`, `firefox`, or `firefox-dev` in PATH)
-- Linux/macOS/Windows (uses `xdg-open` / `open` / `start` as fallback)
+1. Слушает события `message.part.updated`
+2. Накапливает текстовые части ответов ассистента
+3. При завершении сессии (`session.idle`) берет последний завершённый ответ
+4. Создаёт HTML-файл с текстом
+5. Открывает его в Firefox с флагом `--new-window`
 
-## License
+## Требования
+
+- Firefox (`firefox-bin`, `firefox` или `firefox-dev` в PATH)
+- Linux/macOS/Windows (fallback: `xdg-open` / `open` / `start`)
+
+## Лицензия
 
 MIT
