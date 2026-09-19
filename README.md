@@ -43,8 +43,9 @@ Or reference by local path:
 
 ## Requirements
 
-- Firefox (`firefox-bin`, `firefox`, or `firefox-dev` in PATH)
-- Linux/macOS/Windows (fallback: `xdg-open` / `open` / `start`)
+- **Firefox** (`firefox-bin`, `firefox`, or `firefox-dev` in PATH) — preferred, opens in a new window via `--new-window`
+- **Other browsers** (Chrome, Chromium, Edge, Brave, etc.) — supported as fallback via system default (`xdg-open` on Linux, `open` on macOS, `start` on Windows); opens in a new tab/window depending on browser settings
+- Linux/macOS/Windows
 
 ## License
 
