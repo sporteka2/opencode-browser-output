@@ -14,7 +14,7 @@ function debugLog(...args) {
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, """);
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function markdownTableToHtml(text) {
@@ -225,7 +225,7 @@ function openInBrowser(content) {
 }
 
 export default async ({ client }) => {
-  try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED\n`); } catch {}
+  try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.0.0 (markdown+theme)\n`); } catch {}
 
   return {
     "event": async (event) => {
