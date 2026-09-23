@@ -14,7 +14,65 @@ function debugLog(...args) {
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, """);
+}
+
+function markdownTableToHtml(text) {
+  const lines = text.split("\n");
+  const result = [];
+  let inTable = false;
+  let tableLines = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.includes("|")) {
+      tableLines.push(trimmed);
+      inTable = true;
+    } else if (inTable) {
+      const htmlTable = tableLinesToHtml(tableLines);
+      if (htmlTable) {
+        result.push(htmlTable);
+      }
+      tableLines = [];
+      inTable = false;
+      result.push(line);
+    } else {
+      result.push(line);
+    }
+  }
+
+  if (tableLines.length > 0) {
+    const htmlTable = tableLinesToHtml(tableLines);
+    if (htmlTable) {
+      result.push(htmlTable);
+    }
+  }
+
+  return result.join("\n");
+}
+
+function tableLinesToHtml(lines) {
+  if (lines.length < 2) return null;
+
+  const separatorIdx = lines.findIndex(l => l.match(/^\|[\s\-:|]+\|$/));
+  if (separatorIdx === -1 || separatorIdx === lines.length - 1) return null;
+
+  const headers = parseRow(lines[0]);
+  const rows = lines.slice(separatorIdx + 1).map(parseRow).filter(r => r.length === headers.length);
+
+  if (rows.length === 0) return null;
+
+  let html = "<table>";
+  html += "<thead><tr>" + headers.map(h => `<th>${escapeHtml(h)}</th>`).join("") + "</tr></thead>";
+  html += "<tbody>" + rows.map(r => "<tr>" + r.map(c => `<td>${escapeHtml(c)}</td>`).join("") + "</tr>").join("") + "</tbody>";
+  html += "</table>";
+  return html;
+}
+
+function parseRow(line) {
+  return line.slice(1, -1).split("|").map(c => c.trim());
 }
 
 function linkify(text) {
@@ -25,6 +83,8 @@ function linkify(text) {
 function openInBrowser(content) {
   if (!content || content.trim().length < 3) return;
 
+  const processedContent = markdownTableToHtml(content);
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,9 +94,13 @@ function openInBrowser(content) {
     body { font-family: sans-serif; padding: 2rem; white-space: pre-wrap; line-height: 1.6; }
     a { color: #06c; }
     a:hover { text-decoration: underline; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    th { background-color: #f5f5f5; }
+    tr:nth-child(even) { background-color: #fafafa; }
   </style>
 </head>
-<body>${linkify(content)}</body>
+<body>${linkify(processedContent)}</body>
 </html>`;
 
   const file = join(dir, `output-${Date.now()}.html`);
@@ -70,14 +134,12 @@ export default async ({ client }) => {
         const part = props.part;
         if (!part) return;
 
-        // Собираем текст ассистента по сообщению (части типа "text")
         if (part.type === "text" && part.text) {
           const messageID = part.messageID || props.sessionID;
           const prev = pendingText.get(messageID) || "";
           pendingText.set(messageID, prev + part.text);
         }
 
-        // Завершение шага — запоминаем финальный текст сообщения
         if (part.reason === "stop" || part.reason === "complete" || part.type === "step-finish") {
           const messageID = part.messageID || props.sessionID;
           const text = pendingText.get(messageID) || part.text;
@@ -89,7 +151,6 @@ export default async ({ client }) => {
         }
       }
 
-      // Сессия завершена — открываем ТОЛЬКО последний финальный вывод
       if (e.type === "session.idle") {
         if (finishedMessages.length > 0) {
           const last = finishedMessages[finishedMessages.length - 1];
