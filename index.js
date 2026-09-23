@@ -233,6 +233,7 @@ function openInBrowser(content) {
     tr:nth-child(even) { background-color: var(--tr-even); }
     hr { border: none; border-top: 1px solid var(--hr-color); margin: 1.5rem 0; }
     p { margin: 0.5rem 0; }
+    p:first-child, h1:first-child, h2:first-child, h3:first-child { margin-top: 0; }
   </style>
 </head>
 <body>${processedContent}</body>
