@@ -76,6 +76,40 @@ function parseRow(line) {
 }
 
 function markdownToHtml(text) {
+  const tables = [];
+  text = text.replace(/<table>[\s\S]*?<\/table>/g, (m) => {
+    const token = `\u0000TABLE${tables.length}\u0000`;
+    tables.push(m);
+    return token;
+  });
+
+  const codeBlocks = [];
+  text = text.replace(/```(\w*)[ \t]*\n([\s\S]*?)\n?```/g, (_, lang, code) => {
+    const token = `\u0000CODE${codeBlocks.length}\u0000`;
+    codeBlocks.push({ lang: lang || "", code: code.trim() });
+    return token;
+  });
+
+  const anchors = [];
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+    const token = `\u0000LINK${anchors.length}\u0000`;
+    anchors.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`);
+    return token;
+  });
+  const urlRegex = /(https?:\/\/[^\s"'<>()]+[^\s"'<>),.;:!?])/g;
+  text = text.replace(urlRegex, (url) => {
+    const token = `\u0000LINK${anchors.length}\u0000`;
+    anchors.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`);
+    return token;
+  });
+
+  const blockquotes = [];
+  text = text.replace(/^(?:&gt;|>)[ \t]?(.+)$/gm, (_, line) => {
+    const token = `\u0000QUOTE${blockquotes.length}\u0000`;
+    blockquotes.push(line);
+    return token;
+  });
+
   let html = escapeHtml(text);
 
   html = html.replace(/^###\s+(.+)$/gm, "<h3>$1</h3>");
@@ -89,25 +123,27 @@ function markdownToHtml(text) {
   html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
   html = html.replace(/_(.+?)_/g, "<em>$1</em>");
 
-  html = html.replace(/`{3}(\w+)?\n([\s\S]*?)\n`{3}/g, (_, lang, code) => {
-    const langClass = lang ? ` class="language-${lang}"` : "";
-    return `<pre><code${langClass}>${code.trim()}</code></pre>`;
-  });
-
   html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>");
 
-  html = html.replace(/^>\s*(.+)$/gm, "<blockquote>$1</blockquote>");
-  html = html.replace(/^---$/gm, "<hr>");
+  html = html.replace(/^---\s*$/gm, "<hr>");
 
-  html = html.replace(/^[-*+]\s+(.+)$/gm, "<li>$1</li>");
-  html = html.replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>");
-  html = html.replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>");
-  html = html.replace(/(<li>.*<\/li>)/gs, "<ol>$1</ol>");
-
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  html = html.replace(/^[-*+]\s+(.+)$/gm, '<li class="ul">$1</li>');
+  html = html.replace(/^\d+\.\s+(.+)$/gm, '<li class="ol">$1</li>');
+  html = html.replace(/(?:<li class="ul">.*?<\/li>\n?)+/g, (m) => "<ul>" + m.replace(/\s*class="ul"/g, "").replace(/\n/g, "") + "</ul>");
+  html = html.replace(/(?:<li class="ol">.*?<\/li>\n?)+/g, (m) => "<ol>" + m.replace(/\s*class="ol"/g, "").replace(/\n/g, "") + "</ol>");
 
   html = html.replace(/\n\n+/g, "</p><p>");
   html = "<p>" + html + "</p>";
+
+  html = html.replace(/\u0000LINK(\d+)\u0000/g, (_, i) => anchors[+i]);
+  html = html.replace(/\u0000CODE(\d+)\u0000/g, (_, i) => {
+    const cb = codeBlocks[+i];
+    const cls = cb.lang ? ` class="language-${cb.lang}"` : "";
+    return `<pre><code${cls}>${escapeHtml(cb.code)}</code></pre>`;
+  });
+  html = html.replace(/\u0000QUOTE(\d+)\u0000/g, (_, i) => `<blockquote>${escapeHtml(blockquotes[+i])}</blockquote>`);
+  html = html.replace(/\u0000TABLE(\d+)\u0000/g, (_, i) => tables[+i]);
+
   html = html.replace(/<p>\s*<\/p>/g, "");
   html = html.replace(/<p>\s*(<h[1-6]>)/g, "$1");
   html = html.replace(/(<\/h[1-6]>)\s*<\/p>/g, "$1");
@@ -124,11 +160,6 @@ function markdownToHtml(text) {
   html = html.replace(/<p>\s*(<hr>)/g, "$1");
 
   return html;
-}
-
-function linkify(text) {
-  const urlRegex = /(https?:\/\/[^\s"'<>()]+[^\s"'<>),.;:!?])/g;
-  return text.replace(urlRegex, (url) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`);
 }
 
 function openInBrowser(content) {
@@ -178,18 +209,20 @@ function openInBrowser(content) {
     strong { font-weight: 600; }
     em { font-style: italic; }
     code { font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace; font-size: 0.9em; background: var(--code-bg); padding: 0.15rem 0.4rem; border-radius: 4px; }
-    pre { margin: 1rem 0; padding: 1rem; background: var(--code-bg); border-radius: 6px; overflow-x: auto; }
+    pre { margin: 1rem 0; padding: 1rem; background: var(--code-bg); border: 1px solid var(--table-border); border-radius: 6px; overflow-x: auto; }
     pre code { background: transparent; padding: 0; font-size: 0.85rem; line-height: 1.6; }
-    .language-javascript, .language-js { color: #e8d5a3; }
-    .language-typescript, .language-ts { color: #9cdcfe; }
-    .language-python, .language-py { color: #c8e8b8; }
-    .language-rust, .language-rs { color: #f5c588; }
-    .language-go { color: #9cdcfe; }
-    .language-bash, .language-sh { color: #d4d4d4; }
-    .language-json { color: #ce9178; }
-    .language-markdown, .language-md { color: #c3e88d; }
-    .language-css { color: #9cdcfe; }
-    .language-html, .language-xml { color: #ce9178; }
+    @media (prefers-color-scheme: dark) {
+      .language-javascript, .language-js { color: #dcdcaa; }
+      .language-typescript, .language-ts { color: #4ec9b0; }
+      .language-python, .language-py { color: #9cdcfe; }
+      .language-rust, .language-rs { color: #dcdcaa; }
+      .language-go { color: #4ec9b0; }
+      .language-bash, .language-sh { color: #d4d4d4; }
+      .language-json { color: #ce9178; }
+      .language-markdown, .language-md { color: #d7ba7d; }
+      .language-css { color: #9cdcfe; }
+      .language-html, .language-xml { color: #ce9178; }
+    }
     blockquote { margin: 1rem 0; padding: 0 1rem; border-left: 3px solid var(--blockquote-border); color: var(--muted); font-style: italic; }
     ul, ol { margin: 0.5rem 0 0.5rem 1.5rem; }
     li { margin: 0.25rem 0; }
@@ -202,7 +235,7 @@ function openInBrowser(content) {
     p { margin: 0.5rem 0; }
   </style>
 </head>
-<body>${linkify(processedContent)}</body>
+<body>${processedContent}</body>
 </html>`;
 
   const file = join(dir, `output-${Date.now()}.html`);
