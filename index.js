@@ -75,15 +75,67 @@ function parseRow(line) {
   return line.slice(1, -1).split("|").map(c => c.trim());
 }
 
+function markdownToHtml(text) {
+  let html = escapeHtml(text);
+
+  html = html.replace(/^###\s+(.+)$/gm, "<h3>$1</h3>");
+  html = html.replace(/^##\s+(.+)$/gm, "<h2>$1</h2>");
+  html = html.replace(/^#\s+(.+)$/gm, "<h1>$1</h1>");
+
+  html = html.replace(/^\*\*\*(.+?)\*\*\*$/gm, "<strong><em>$1</em></strong>");
+  html = html.replace(/^___(.+?)___$/gm, "<strong><em>$1</em></strong>");
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__(.+?)__/g, "<strong>$1</strong>");
+  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  html = html.replace(/_(.+?)_/g, "<em>$1</em>");
+
+  html = html.replace(/`{3}(\w+)?\n([\s\S]*?)\n`{3}/g, (_, lang, code) => {
+    const langClass = lang ? ` class="language-${lang}"` : "";
+    return `<pre><code${langClass}>${code.trim()}</code></pre>`;
+  });
+
+  html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+
+  html = html.replace(/^>\s*(.+)$/gm, "<blockquote>$1</blockquote>");
+  html = html.replace(/^---$/gm, "<hr>");
+
+  html = html.replace(/^[-*+]\s+(.+)$/gm, "<li>$1</li>");
+  html = html.replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>");
+  html = html.replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>");
+  html = html.replace(/(<li>.*<\/li>)/gs, "<ol>$1</ol>");
+
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+  html = html.replace(/\n\n+/g, "</p><p>");
+  html = "<p>" + html + "</p>";
+  html = html.replace(/<p>\s*<\/p>/g, "");
+  html = html.replace(/<p>\s*(<h[1-6]>)/g, "$1");
+  html = html.replace(/(<\/h[1-6]>)\s*<\/p>/g, "$1");
+  html = html.replace(/<p>\s*(<table>)/g, "$1");
+  html = html.replace(/(<\/table>)\s*<\/p>/g, "$1");
+  html = html.replace(/<p>\s*(<ul>)/g, "$1");
+  html = html.replace(/(<\/ul>)\s*<\/p>/g, "$1");
+  html = html.replace(/<p>\s*(<ol>)/g, "$1");
+  html = html.replace(/(<\/ol>)\s*<\/p>/g, "$1");
+  html = html.replace(/<p>\s*(<blockquote>)/g, "$1");
+  html = html.replace(/(<\/blockquote>)\s*<\/p>/g, "$1");
+  html = html.replace(/<p>\s*(<pre>)/g, "$1");
+  html = html.replace(/(<\/pre>)\s*<\/p>/g, "$1");
+  html = html.replace(/<p>\s*(<hr>)/g, "$1");
+
+  return html;
+}
+
 function linkify(text) {
   const urlRegex = /(https?:\/\/[^\s"'<>()]+[^\s"'<>),.;:!?])/g;
-  return escapeHtml(text).replace(urlRegex, (url) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`);
+  return text.replace(urlRegex, (url) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`);
 }
 
 function openInBrowser(content) {
   if (!content || content.trim().length < 3) return;
 
-  const processedContent = markdownTableToHtml(content);
+  const withTables = markdownTableToHtml(content);
+  const processedContent = markdownToHtml(withTables);
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -91,13 +143,63 @@ function openInBrowser(content) {
   <meta charset="UTF-8">
   <title>OpenCode Output</title>
   <style>
-    body { font-family: sans-serif; padding: 1rem; white-space: pre-wrap; line-height: 1.6; }
-    a { color: #06c; }
+    :root {
+      --bg: #fff;
+      --fg: #111;
+      --link: #06c;
+      --muted: #666;
+      --table-border: #ddd;
+      --th-bg: #f5f5f5;
+      --tr-even: #fafafa;
+      --code-bg: #f4f4f4;
+      --blockquote-border: #ccc;
+      --hr-color: #eee;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --fg: #e0e0e0;
+        --link: #6ab0ff;
+        --muted: #999;
+        --table-border: #444;
+        --th-bg: #2a2a2a;
+        --tr-even: #222;
+        --code-bg: #2a2a2a;
+        --blockquote-border: #555;
+        --hr-color: #333;
+      }
+    }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 1rem; line-height: 1.7; background: var(--bg); color: var(--fg); max-width: 900px; margin: 0 auto; }
+    a { color: var(--link); text-decoration: none; }
     a:hover { text-decoration: underline; }
-    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
-    th { background-color: #f5f5f5; }
-    tr:nth-child(even) { background-color: #fafafa; }
+    h1 { font-size: 1.8rem; font-weight: 600; margin: 1.5rem 0 0.5rem; border-bottom: 1px solid var(--hr-color); padding-bottom: 0.3rem; }
+    h2 { font-size: 1.5rem; font-weight: 600; margin: 1.3rem 0 0.5rem; }
+    h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.4rem; }
+    strong { font-weight: 600; }
+    em { font-style: italic; }
+    code { font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace; font-size: 0.9em; background: var(--code-bg); padding: 0.15rem 0.4rem; border-radius: 4px; }
+    pre { margin: 1rem 0; padding: 1rem; background: var(--code-bg); border-radius: 6px; overflow-x: auto; }
+    pre code { background: transparent; padding: 0; font-size: 0.85rem; line-height: 1.6; }
+    .language-javascript, .language-js { color: #e8d5a3; }
+    .language-typescript, .language-ts { color: #9cdcfe; }
+    .language-python, .language-py { color: #c8e8b8; }
+    .language-rust, .language-rs { color: #f5c588; }
+    .language-go { color: #9cdcfe; }
+    .language-bash, .language-sh { color: #d4d4d4; }
+    .language-json { color: #ce9178; }
+    .language-markdown, .language-md { color: #c3e88d; }
+    .language-css { color: #9cdcfe; }
+    .language-html, .language-xml { color: #ce9178; }
+    blockquote { margin: 1rem 0; padding: 0 1rem; border-left: 3px solid var(--blockquote-border); color: var(--muted); font-style: italic; }
+    ul, ol { margin: 0.5rem 0 0.5rem 1.5rem; }
+    li { margin: 0.25rem 0; }
+    li::marker { color: var(--muted); }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--table-border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { background-color: var(--th-bg); font-weight: 600; }
+    tr:nth-child(even) { background-color: var(--tr-even); }
+    hr { border: none; border-top: 1px solid var(--hr-color); margin: 1.5rem 0; }
+    p { margin: 0.5rem 0; }
   </style>
 </head>
 <body>${linkify(processedContent)}</body>
