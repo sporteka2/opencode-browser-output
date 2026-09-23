@@ -91,7 +91,7 @@ function openInBrowser(content) {
   <meta charset="UTF-8">
   <title>OpenCode Output</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; white-space: pre-wrap; line-height: 1.6; }
+    body { font-family: sans-serif; padding: 1rem; white-space: pre-wrap; line-height: 1.6; }
     a { color: #06c; }
     a:hover { text-decoration: underline; }
     table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
