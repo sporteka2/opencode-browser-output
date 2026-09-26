@@ -1,16 +1,27 @@
-import { writeFileSync, mkdirSync, appendFileSync } from "fs";
+import { writeFileSync, mkdirSync, appendFileSync, readdirSync, statSync, unlinkSync } from "fs";
 import { execSync } from "child_process";
-import { tmpdir } from "os";
+import { homedir } from "os";
 import { join } from "path";
 
 const pendingText = new Map();
 const finishedMessages = [];
-const LOG_FILE = join(tmpdir(), "opencode-browser-output.log");
-const dir = join(tmpdir(), "opencode-browser-output");
+const dir = join(homedir(), ".cache", "opencode-browser-output");
+const LOG_FILE = join(dir, "plugin.log");
+const MAX_FILES = 20;
 mkdirSync(dir, { recursive: true });
 
 function debugLog(...args) {
   try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${args.join(" ")}\n`); } catch {}
+}
+
+function prune() {
+  try {
+    const files = readdirSync(dir)
+      .filter((f) => f.startsWith("output-") && f.endsWith(".html"))
+      .map((f) => ({ f, t: statSync(join(dir, f)).mtimeMs }))
+      .sort((a, b) => b.t - a.t);
+    for (const { f } of files.slice(MAX_FILES)) unlinkSync(join(dir, f));
+  } catch {}
 }
 
 function escapeHtml(s) {
@@ -239,8 +250,14 @@ function openInBrowser(content) {
 <body>${processedContent}</body>
 </html>`;
 
+  prune();
   const file = join(dir, `output-${Date.now()}.html`);
-  writeFileSync(file, html);
+  try {
+    writeFileSync(file, html);
+  } catch (e) {
+    debugLog("Failed to write file:", e.code, e.message);
+    return;
+  }
 
   let cmd;
   if (process.platform === "win32") {
