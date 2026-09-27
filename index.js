@@ -107,7 +107,7 @@ function markdownToHtml(text) {
     anchors.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`);
     return token;
   });
-  const urlRegex = /(https?:\/\/[^\s"'<>()]+[^\s"'<>),.;:!?])/g;
+  const urlRegex = /(https?:\/\/[^\s"'<>()*_]+[^\s"'<>),.;:!?*_])/g;
   text = text.replace(urlRegex, (url) => {
     const token = `\u0000LINK${anchors.length}\u0000`;
     anchors.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`);
