@@ -7,7 +7,7 @@ const pendingText = new Map();
 const finishedMessages = [];
 const dir = join(homedir(), ".cache", "opencode-browser-output");
 const LOG_FILE = join(dir, "plugin.log");
-const MAX_FILES = 20;
+const MAX_FILES = 500;
 mkdirSync(dir, { recursive: true });
 
 function debugLog(...args) {
@@ -107,7 +107,7 @@ function markdownToHtml(text) {
     anchors.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`);
     return token;
   });
-  const urlRegex = /(https?:\/\/[^\s"'<>()*_]+[^\s"'<>),.;:!?*_])/g;
+  const urlRegex = /(https?:\/\/[^\s"'<>()*_`]+[^\s"'<>),.;:!?*_`])/g;
   text = text.replace(urlRegex, (url) => {
     const token = `\u0000LINK${anchors.length}\u0000`;
     anchors.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`);
