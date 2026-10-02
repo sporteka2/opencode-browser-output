@@ -322,8 +322,11 @@ export default async ({ client }) => {
       if (e.type === "question.asked") {
         const md = questionsToMarkdown(props.questions);
         if (md.trim()) {
-          debugLog("QUESTION ASKED:", props.questions?.length, "questions");
-          openInBrowser(md);
+          const pending = Array.from(pendingText.values()).join("\n").trim();
+          const combined = pending ? pending + "\n\n" + md : md;
+          debugLog("QUESTION ASKED:", props.questions?.length, "questions, pending text len=", pending.length);
+          openInBrowser(combined);
+          pendingText.clear();
         }
       }
 
