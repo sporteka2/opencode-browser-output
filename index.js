@@ -275,6 +275,21 @@ function openInBrowser(content) {
   }
 }
 
+function questionsToMarkdown(questions) {
+  return (questions || [])
+    .map((q, qi) => {
+      let md = `## ${q.question || "Вопрос"}\n`;
+      if (q.header) md += `**${q.header}**\n`;
+      if (Array.isArray(q.options) && q.options.length > 0) {
+        md += q.options.map((o, i) => `${i + 1}. **${o.label}**${o.description ? " — " + o.description : ""}`).join("\n");
+      }
+      if (q.multiple) md += "\n\n_можно выбрать несколько вариантов_";
+      if (q.custom) md += "\n\n_можно ввести свой вариант_";
+      return md;
+    })
+    .join("\n\n");
+}
+
 export default async ({ client }) => {
   try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.0.0 (markdown+theme)\n`); } catch {}
 
@@ -301,6 +316,14 @@ export default async ({ client }) => {
             finishedMessages.push({ id: messageID, text });
             pendingText.delete(messageID);
           }
+        }
+      }
+
+      if (e.type === "question.asked") {
+        const md = questionsToMarkdown(props.questions);
+        if (md.trim()) {
+          debugLog("QUESTION ASKED:", props.questions?.length, "questions");
+          openInBrowser(md);
         }
       }
 
