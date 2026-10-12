@@ -322,11 +322,12 @@ export default async ({ client }) => {
       if (e.type === "question.asked") {
         const md = questionsToMarkdown(props.questions);
         if (md.trim()) {
-          const pending = Array.from(pendingText.values()).join("\n").trim();
-          const combined = pending ? pending + "\n\n" + md : md;
-          debugLog("QUESTION ASKED:", props.questions?.length, "questions, pending text len=", pending.length);
+          const msgID = props.tool?.messageID;
+          const pending = (msgID ? pendingText.get(msgID) : null) || "";
+          const combined = (pending ? pending.trim() + "\n\n" : "") + md;
+          debugLog("QUESTION ASKED:", props.questions?.length, "questions, pending len=", pending.length, "msgID=", msgID);
           openInBrowser(combined);
-          pendingText.clear();
+          if (msgID) pendingText.delete(msgID);
         }
       }
 
