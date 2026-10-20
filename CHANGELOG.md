@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-10-20
+
+### Added
+- Restored opening questions in browser (V1 feature ported to V2)
+- Questions now handled via `form.created` events with `metadata.kind === "question"`
+- Renders form fields: string, multiselect, boolean with options and descriptions
+
+### Fixed
+- **Duplicate browser windows** — cross-instance claim file (`last-open.json`) prevents multiple plugin instances (one per active OpenCode location) from opening the same output twice
+- Version bump in package.json now matches log output
+
+### Changed
+- Updated for OpenCode V2 plugin API: `setup(ctx)` returns cleanup function, `ctx.event.subscribe()` with AbortSignal
+- Internal event handling migrated from `message.part.updated` / `question.asked` (removed in V2) to `session.text.delta` / `session.text.ended` / `session.step.ended` / `session.idle` / `form.created`
+
 ## [2.0.0] - 2026-09-26
 
 ### Added

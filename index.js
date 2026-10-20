@@ -1,14 +1,41 @@
-import { writeFileSync, mkdirSync, appendFileSync, readdirSync, statSync, unlinkSync } from "fs";
+import { writeFileSync, readFileSync, mkdirSync, appendFileSync, readdirSync, statSync, unlinkSync } from "fs";
 import { execSync } from "child_process";
 import { homedir } from "os";
 import { join } from "path";
 
-const pendingText = new Map();
-const finishedMessages = [];
+// V2: text blocks are streamed as session.text.delta / session.text.ended.
+// Keyed by `${assistantMessageID}#${ordinal}`, with lastKey pointing at the
+// most recent block so session.idle can open the final answer.
+const texts = new Map();
+let lastKey = null;
+let openedKey = null;
 const dir = join(homedir(), ".cache", "opencode-browser-output");
 const LOG_FILE = join(dir, "plugin.log");
+const CLAIM_FILE = join(dir, "last-open.json");
+const CLAIM_TTL = 15000;
 const MAX_FILES = 500;
 mkdirSync(dir, { recursive: true });
+
+// OpenCode loads one plugin instance per active location (directory), and every
+// instance subscribes to the same global event stream. Cross-instance claim so
+// only the first instance opens the browser for a given message.
+function claimOpen(key) {
+  const payload = JSON.stringify({ key, ts: Date.now() });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      writeFileSync(CLAIM_FILE, payload, { flag: "wx" });
+      return true;
+    } catch (e) {
+      if (e.code !== "EEXIST") return true;
+      try {
+        const cur = JSON.parse(readFileSync(CLAIM_FILE, "utf8"));
+        if (cur.key === key && Date.now() - cur.ts < CLAIM_TTL) return false;
+      } catch {}
+      try { unlinkSync(CLAIM_FILE); } catch {}
+    }
+  }
+  return true;
+}
 
 function debugLog(...args) {
   try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${args.join(" ")}\n`); } catch {}
@@ -275,70 +302,111 @@ function openInBrowser(content) {
   }
 }
 
-function questionsToMarkdown(questions) {
-  return (questions || [])
-    .map((q, qi) => {
-      let md = `## ${q.question || "Вопрос"}\n`;
-      if (q.header) md += `**${q.header}**\n`;
-      if (Array.isArray(q.options) && q.options.length > 0) {
-        md += q.options.map((o, i) => `${i + 1}. **${o.label}**${o.description ? " — " + o.description : ""}`).join("\n");
-      }
-      if (q.multiple) md += "\n\n_можно выбрать несколько вариантов_";
-      if (q.custom) md += "\n\n_можно ввести свой вариант_";
-      return md;
-    })
-    .join("\n\n");
+// V2: questions arrive as `form.created` with metadata.kind === "question".
+// Fields are Form.Field (string/number/integer/boolean/multiselect/external),
+// options are { value, label, description }.
+function formToMarkdown(form) {
+  const parts = [];
+  const title = (form.title || "").trim();
+  if (title && title.toLowerCase() !== "questions") parts.push(`## ${title}`);
+  for (const f of form.fields || []) {
+    if (f.hidden) continue;
+    let md = `## ${f.title || f.key}`;
+    if (f.description) md += `\n${f.description}`;
+    if (Array.isArray(f.options) && f.options.length > 0) {
+      md += "\n" + f.options.map((o, i) => `${i + 1}. **${o.label}**${o.description ? " — " + o.description : ""}`).join("\n");
+    } else if (f.type === "boolean") {
+      md += "\n1. **Да**\n2. **Нет**";
+    }
+    if (f.type === "multiselect") md += "\n\n_можно выбрать несколько вариантов_";
+    if (f.custom) md += "\n\n_можно ввести свой вариант_";
+    parts.push(md);
+  }
+  return parts.join("\n\n");
 }
 
-export default async ({ client }) => {
-  try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.0.0 (markdown+theme)\n`); } catch {}
+function openQuestion(form) {
+  const md = formToMarkdown(form);
+  if (!md.trim()) return;
+  const msgID = form.metadata?.tool?.messageID;
+  const pendingKey = msgID ? [...texts.keys()].find((k) => k.startsWith(msgID + "#")) : null;
+  const pending = pendingKey ? texts.get(pendingKey) : "";
+  const content = pending && pending.trim().length >= 3 ? pending.trim() + "\n\n" + md : md;
+  const openKey = `form#${form.id}`;
+  debugLog("QUESTION ASKED:", form.fields?.length, "fields, pending len=", pending.length, "key=", openKey);
+  if (!claimOpen(openKey)) {
+    debugLog("SKIP open (question) already claimed by another instance:", openKey);
+    return;
+  }
+  // The text shown with the question must not be opened again on step:stop.
+  if (pendingKey) openedKey = pendingKey;
+  openInBrowser(content);
+}
 
-  return {
-    "event": async (event) => {
-      const e = event.event || event;
-      const props = e.properties || {};
+try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.2.0 (form.created questions)\n`); } catch {}
 
-      if (e.type === "message.part.updated") {
-        const part = props.part;
-        if (!part) return;
+export default {
+  id: "browser-output",
+  setup: async (ctx) => {
+    debugLog("SETUP ENTERED (v2)");
+    const controller = new AbortController();
 
-        if (part.type === "text" && part.text) {
-          const messageID = part.messageID || props.sessionID;
-          const prev = pendingText.get(messageID) || "";
-          pendingText.set(messageID, prev + part.text);
-        }
+    const maybeOpen = (reason) => {
+      const text = lastKey ? texts.get(lastKey) : "";
+      if (!text || text.trim().length < 3) {
+        debugLog("SKIP open (" + reason + ") lastKey=", lastKey);
+        return;
+      }
+      if (lastKey === openedKey) {
+        debugLog("SKIP open (" + reason + ") already opened:", lastKey);
+        return;
+      }
+      debugLog("FINISHED (" + reason + "):", lastKey, "len=", text.length);
+      openedKey = lastKey;
+      if (!claimOpen(lastKey)) {
+        debugLog("SKIP open (" + reason + ") already claimed by another instance:", lastKey);
+        return;
+      }
+      openInBrowser(text);
+    };
 
-        if (part.reason === "stop" || part.reason === "complete" || part.type === "step-finish") {
-          const messageID = part.messageID || props.sessionID;
-          const text = pendingText.get(messageID) || part.text;
-          if (text && text.trim().length >= 3) {
-            debugLog("FINISHED:", messageID, "len=", text.length);
-            finishedMessages.push({ id: messageID, text });
-            pendingText.delete(messageID);
+    void (async () => {
+      for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
+        const type = event.type;
+        const data = event.data || {};
+
+        if (type === "session.text.delta") {
+          const id = data.assistantMessageID || data.sessionID;
+          const key = `${id}#${data.ordinal}`;
+          lastKey = key;
+          texts.set(key, (texts.get(key) || "") + (data.delta || ""));
+        } else if (type === "session.text.ended") {
+          const id = data.assistantMessageID || data.sessionID;
+          const key = `${id}#${data.ordinal}`;
+          lastKey = key;
+          if (typeof data.text === "string" && data.text.length) texts.set(key, data.text);
+          debugLog("TEXT ENDED:", key, "len=", (texts.get(key) || "").length);
+        } else if (type === "session.step.ended") {
+          const finish = data.finish;
+          if (finish && finish !== "tool-calls" && finish !== "unknown") {
+            maybeOpen("step:" + finish);
           }
+        } else if (type === "session.idle") {
+          maybeOpen("idle");
+          texts.clear();
+          lastKey = null;
+        } else if (type === "form.created") {
+          const form = data.form;
+          if (form?.metadata?.kind === "question") {
+            openQuestion(form);
+          } else {
+            debugLog("FORM EVENT (ignored):", form?.title || type);
+          }
+        } else if (/form|question/.test(type)) {
+          debugLog("QUESTION/FORM EVENT:", type, JSON.stringify(data).slice(0, 400));
         }
       }
-
-      if (e.type === "question.asked") {
-        const md = questionsToMarkdown(props.questions);
-        if (md.trim()) {
-          const msgID = props.tool?.messageID;
-          const pending = (msgID ? pendingText.get(msgID) : null) || "";
-          const combined = (pending ? pending.trim() + "\n\n" : "") + md;
-          debugLog("QUESTION ASKED:", props.questions?.length, "questions, pending len=", pending.length, "msgID=", msgID);
-          openInBrowser(combined);
-          if (msgID) pendingText.delete(msgID);
-        }
-      }
-
-      if (e.type === "session.idle") {
-        if (finishedMessages.length > 0) {
-          const last = finishedMessages[finishedMessages.length - 1];
-          debugLog("Opening last final output:", last.id, "len=", last.text.length);
-          openInBrowser(last.text);
-          finishedMessages.length = 0;
-        }
-      }
-    },
-  };
+    })();
+    return () => controller.abort();
+  },
 };
