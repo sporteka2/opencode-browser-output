@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.1] - 2026-11-10
+
+### Fixed
+- Zoom no longer resets per page: the opened page is written to a fixed path
+  `output.html`, so Firefox's per-URL zoom preference carries over to every new
+  output window (`localStorage` was tried first and dropped — Firefox keeps
+  `file://` origins in memory only, so nothing survives a page change)
+- Answers/questions open for the session that produced the tracked text, not for
+  every session on the shared event stream (a retrying/failing background
+  session used to open a window every ~10 minutes)
+- `return` inside the `for await` event loop no longer kills the subscription
+  (`continue` + reconnect with backoff); previously one skipped event stopped
+  all browser opens until a config reload
+
+## [2.2.8] - 2026-11-02
+
+### Fixed
+- Questions with options open in the browser again after the OpenCode 2.2.5
+  update: they are no longer announced via `form.created` but arrive as a
+  `question` tool call, so the tool name is tracked from
+  `session.tool.input.started` and the page opens on `session.tool.called`
+  (also covers the octto question tools)
+- One window per question: the tool path and the legacy `form.created` path
+  share one claim key keyed by `messageID`
+- Browser launch is a detached async `spawn` instead of `execSync`, which died
+  with `ETIMEDOUT` whenever the browser was busy
+
 ## [2.2.0] - 2026-10-20
 
 ### Added
