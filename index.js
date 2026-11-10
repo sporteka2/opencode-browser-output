@@ -230,6 +230,30 @@ function markdownToHtml(text) {
 }
 
 
+// Error payloads arrive as objects ({type, message, status, response}).
+// Renders them as readable text instead of "[object Object]".
+function formatError(err, fallback) {
+  if (!err) return fallback;
+  if (typeof err === "string") return err;
+  if (typeof err.message === "string" || err.type) {
+    const head = [err.type, err.message].filter(Boolean).join(": ");
+    const extras = {};
+    for (const k of Object.keys(err)) {
+      if (k !== "type" && k !== "message") extras[k] = err[k];
+    }
+    let tail = "";
+    if (Object.keys(extras).length > 0) {
+      try { tail = "\n\n" + JSON.stringify(extras, null, 2); } catch {}
+    }
+    return (head || fallback) + tail.slice(0, 2000);
+  }
+  try {
+    const json = JSON.stringify(err, null, 2);
+    if (json) return json.slice(0, 2000);
+  } catch {}
+  return fallback;
+}
+
 function openInBrowser(content, label) {
   if (!content || content.trim().length < 3) return;
 
@@ -443,7 +467,7 @@ function openQuestionTool(toolName, input, sessionID, assistantMessageID) {
   void sessionLabel(sessionID || lastSessionID).then((label) => openInBrowser(content, label));
 }
 
-try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.3.1 (stable output URL keeps Firefox zoom)\n`); } catch {}
+try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.3.2 (readable error rendering)\n`); } catch {}
 
 export default {
   id: "browser-output",
@@ -523,7 +547,7 @@ export default {
             debugLog("SKIP open (error) session=", data.sessionID, "lastSession=", lastSessionID, "len=", text.trim().length);
             continue;
           }
-          const err = data.error || data.reason || data.message || (type === "session.execution.failed" ? "Execution failed" : "Execution interrupted");
+          const err = formatError(data.error || data.reason || data.message, type === "session.execution.failed" ? "Execution failed" : "Execution interrupted");
           const label = type === "session.execution.failed" ? "⚠️ Execution Error" : "⏹️ Execution Interrupted";
           const content = (text && text.trim().length >= 3 ? text.trim() + "\n\n" : "") + `## ${label}\n\n\`\`\`\n${err}\n\`\`\``;
           if (!claimOpen("error#" + lastSessionID + "#" + lastKey)) {
