@@ -229,6 +229,7 @@ function markdownToHtml(text) {
   return html;
 }
 
+
 function openInBrowser(content, label) {
   if (!content || content.trim().length < 3) return;
 
@@ -312,7 +313,12 @@ function openInBrowser(content, label) {
 </html>`;
 
   prune();
-  const file = join(dir, `output-${Date.now()}.html`);
+  // Firefox stores its zoom preference per URL, so the page is always written
+  // to the same path (a fresh window opens on every run, reusing the zoom).
+  // The timestamped copy is kept only as history.
+  const stamp = Date.now();
+  const file = join(dir, "output.html");
+  try { writeFileSync(join(dir, `output-${stamp}.html`), html); } catch {}
   try {
     writeFileSync(file, html);
   } catch (e) {
@@ -437,7 +443,7 @@ function openQuestionTool(toolName, input, sessionID, assistantMessageID) {
   void sessionLabel(sessionID || lastSessionID).then((label) => openInBrowser(content, label));
 }
 
-try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.2.8 (question tool opens browser)\n`); } catch {}
+try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.3.1 (stable output URL keeps Firefox zoom)\n`); } catch {}
 
 export default {
   id: "browser-output",

@@ -1,6 +1,6 @@
 {
   "name": "opencode-plugin-browser-output",
-  "version": "2.2.8",
+  "version": "2.3.1",
   "description": "Opencode plugin that opens the final assistant output in a browser window with clickable links",
   "main": "index.js",
   "type": "module",
