@@ -1,4 +1,4 @@
-import { writeFileSync, readFileSync, mkdirSync, appendFileSync, readdirSync, statSync, unlinkSync } from "fs";
+import { writeFileSync, readFileSync, existsSync, mkdirSync, appendFileSync, readdirSync, statSync, unlinkSync } from "fs";
 import { spawn } from "child_process";
 import { homedir } from "os";
 import { join } from "path";
@@ -356,7 +356,11 @@ function openInBrowser(content, label) {
   } else if (process.platform === "darwin") {
     cmd = `open "${file}"`;
   } else {
-    cmd = `xdg-open "${file}"`;
+    // Dedicated Firefox profile gives these windows their own WM_CLASS, so the
+    // Cinnamon panel groups them under their own icon instead of merging them
+    // into the main Firefox group. Falls back to the default browser handler.
+    const LAUNCHER = join(homedir(), ".local", "bin", "opencode-output-browser");
+    cmd = existsSync(LAUNCHER) ? `"${LAUNCHER}" "${file}"` : `xdg-open "${file}"`;
   }
   // Fire-and-forget: execSync(xdg-open) blocked the event loop for up to its
   // timeout and died with ETIMEDOUT whenever the browser was busy — the file
@@ -467,7 +471,7 @@ function openQuestionTool(toolName, input, sessionID, assistantMessageID) {
   void sessionLabel(sessionID || lastSessionID).then((label) => openInBrowser(content, label));
 }
 
-try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.3.2 (readable error rendering)\n`); } catch {}
+try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.3.3 (dedicated output browser profile)\n`); } catch {}
 
 export default {
   id: "browser-output",
