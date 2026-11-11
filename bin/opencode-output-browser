@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Opens OpenCode output pages in a dedicated Firefox profile.
 #
-# The profile hides the URL/nav bar via chrome/userChrome.css (enabled through
-# user.js: toolkit.legacyUserProfileCustomizations.stylesheets — camelCase
-# matters, the lowercase spelling is silently ignored) and gets its own
-# WM_CLASS, so Cinnamon groups these windows under their own panel icon
-# (see opencode-output.desktop) instead of merging them into the main Firefox
-# group. Zoom is Firefox's per-URL setting, which persists because the page is
-# always written to the same path (output.html).
+# * --class opencode-output gives the windows their own WM_CLASS, so Cinnamon
+#   groups them under their own panel icon (see opencode-output.desktop)
+#   instead of merging them into the main Firefox group
+# * the profile's chrome/userChrome.css hides the URL and tab bars (URL bar
+#   slides in on hover / Ctrl+L); user.js enables userChrome support
+# * after the window appears we strip the window-manager titlebar, so the
+#   minimise/maximise/close panel is gone too
+#
+# Falls back to the chromeless GTK viewer when the profile or Firefox is
+# missing.
 set -euo pipefail
 
 PROFILE="${HOME}/.mozilla/firefox/ciefemfa.opencode-output"
@@ -18,9 +21,26 @@ case "$PROFILE" in
 esac
 
 FF=$(command -v firefox-dev || command -v firefox || true)
-if [ -n "$FF" ] && [ -d "$PROFILE" ]; then
-  exec "$FF" --class opencode-output --profile "$PROFILE" --new-window "$@"
+if [ -z "$FF" ] || [ ! -d "$PROFILE" ]; then
+  exec "${HOME}/.local/bin/opencode-output-viewer" "$@"
 fi
 
-# Fallback: chromeless GTK viewer (no URL bar at all).
-exec "${HOME}/.local/bin/opencode-output-viewer" "$@"
+before=$(wmctrl -lx 2>/dev/null | awk '$3 ~ /Navigator\.opencode-output$/ {print $1}' | sort)
+"$FF" --class opencode-output --profile "$PROFILE" --new-window "$@" >/dev/null 2>&1 &
+
+# Wait for the new window, then drop the WM titlebar (decorations).
+for _ in $(seq 1 60); do
+  sleep 0.25
+  now=$(wmctrl -lx 2>/dev/null | awk '$3 ~ /Navigator\.opencode-output$/ {print $1}' | sort)
+  new=$(comm -13 <(printf '%s\n' "$before") <(printf '%s\n' "$now") | head -1)
+  [ -n "$new" ] || continue
+  xprop -id "$new" -f _MOTIF_WM_HINTS 32c -set _MOTIF_WM_HINTS "0x2, 0x0, 0x0, 0x0, 0x0" 2>/dev/null || true
+  # Give the WM a moment, then verify it actually took effect.
+  sleep 0.5
+  hints=$(xprop -id "$new" _MOTIF_WM_HINTS 2>/dev/null || true)
+  case "$hints" in
+    *"0x2, 0x0"*) exit 0 ;;
+  esac
+  exit 0
+done
+exit 0
