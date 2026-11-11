@@ -1,4 +1,4 @@
-import { writeFileSync, readFileSync, existsSync, mkdirSync, appendFileSync, readdirSync, statSync, unlinkSync } from "fs";
+import { writeFileSync, readFileSync, copyFileSync, existsSync, mkdirSync, appendFileSync, readdirSync, statSync, unlinkSync } from "fs";
 import { spawn } from "child_process";
 import { homedir } from "os";
 import { join } from "path";
@@ -268,8 +268,54 @@ function formatError(err, fallback) {
   return fallback;
 }
 
-function openInBrowser(content, label) {
+// Firefox keeps its zoom per full URL, so a fresh output page would always
+// start at 100%. Read the last zoom the user set on any output page from
+// Firefox's content-prefs.sqlite and bake it into the new page, so the scale
+// carries over. The page itself is zoomed, Firefox's own per-URL zoom stays 1.
+async function lastBrowserZoom() {
+  try {
+    const mod = await import("bun:sqlite");
+    const base = join(homedir(), ".mozilla", "firefox");
+    let zoom = 1;
+    let profiles = [];
+    try {
+      profiles = readdirSync(base).filter((d) => d.includes("opencode-output"));
+    } catch {}
+    for (const p of profiles) {
+      const src = join(base, p, "content-prefs.sqlite");
+      if (!existsSync(src)) continue;
+      const tmp = join(dir, "content-prefs.copy.sqlite");
+      try {
+        copyFileSync(src, tmp);
+      } catch {
+        continue;
+      }
+      try {
+        const db = new mod.Database(tmp, { readonly: true });
+        const rows = db
+          .query(
+            "SELECT p.value AS value FROM prefs p JOIN groups g ON g.id = p.groupID JOIN settings s ON s.id = p.settingID WHERE s.name = 'browser.content.full-zoom' AND g.name LIKE '%opencode-browser-output%' ORDER BY p.timestamp DESC LIMIT 1",
+          )
+          .all();
+        db.close();
+        for (const r of rows) {
+          const z = Number(r.value);
+          if (Number.isFinite(z) && z >= 0.3 && z <= 5) zoom = Math.max(zoom, z);
+        }
+      } catch {}
+      try { unlinkSync(tmp); } catch {}
+    }
+    return zoom;
+  } catch {
+    return 1;
+  }
+}
+
+async function openInBrowser(content, label) {
   if (!content || content.trim().length < 3) return;
+
+  const zoom = await lastBrowserZoom();
+  const zoomStyle = zoom && zoom !== 1 ? `\n    html { zoom: ${zoom}; }` : "";
 
   const withTables = markdownTableToHtml(content);
   const processedContent = markdownToHtml(withTables);
@@ -283,7 +329,7 @@ function openInBrowser(content, label) {
 <head>
   <meta charset="UTF-8">
   <title>OpenCode Output</title>
-  <style>
+  <style>${zoomStyle}
     :root {
       --bg: #fff;
       --fg: #111;
@@ -457,7 +503,7 @@ async function openQuestionForm(form, formSessionID) {
   }
   // The text shown with the question must not be opened again on step:stop.
   if (pendingKey) openedKey = pendingKey;
-  openInBrowser(content, await sessionLabel(lastSessionID));
+  await openInBrowser(content, await sessionLabel(lastSessionID));
 }
 
 // V2.2.5+: questions arrive as a `question` tool call, not as form.created.
@@ -507,7 +553,7 @@ export default {
         debugLog("SKIP open (" + reason + ") already claimed by another instance:", lastKey);
         return;
       }
-      openInBrowser(text, await sessionLabel(lastSessionID));
+      await openInBrowser(text, await sessionLabel(lastSessionID));
     };
 
     // Reconnect loop: `for await` exits when the server closes the stream, which
@@ -574,7 +620,7 @@ export default {
             continue;
           }
           openedKey = lastKey;
-          openInBrowser(content, await sessionLabel(lastSessionID));
+          await openInBrowser(content, await sessionLabel(lastSessionID));
         } else if (/form|question/.test(type)) {
           debugLog("QUESTION/FORM EVENT:", type, JSON.stringify(data).slice(0, 400));
         } else if (type === "session.tool.input.started") {
