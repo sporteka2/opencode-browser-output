@@ -1,7 +1,29 @@
 /* OpenCode output profile:
+   - Firefox's own window buttons (CSD, not Muffin's) hidden
    - tab strip hidden completely (a thin invisible strip stays as the hover
      target for the URL bar)
    - URL/nav bar hidden, appears instantly on hover or Ctrl+L */
+
+.titlebar-buttonbox-container,
+.titlebar-buttonbox,
+#window-controls,
+#minimize-button,
+#restore-button,
+#close-button,
+#TabsToolbar .titlebar-spacer {
+  display: none !important;
+}
+
+#titlebar {
+  height: 10px !important;
+  min-height: 10px !important;
+  max-height: 10px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+  appearance: none !important;
+}
 
 #TabsToolbar {
   height: 10px !important;
@@ -24,11 +46,6 @@
 #tabs-newtab-button,
 #alltabs-button {
   display: none !important;
-}
-
-#titlebar {
-  padding: 0 !important;
-  margin: 0 !important;
 }
 
 #nav-bar {
