@@ -1,0 +1,7 @@
+/* OpenCode output profile: hide the URL/nav panel, keep the tab strip. */
+#nav-bar {
+  display: none !important;
+}
+#PersonalToolbar {
+  display: none !important;
+}

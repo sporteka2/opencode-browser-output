@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
-# Opens OpenCode output pages in a chromeless window (GTK3 + WebKitGTK): no
-# URL bar at all, own WM_CLASS so Cinnamon groups these windows under their
-# own panel icon (see opencode-output.desktop), and a persisted zoom level
-# (Ctrl+wheel / Ctrl+-/+/0) shared across all output windows.
+# Opens OpenCode output pages in a dedicated Firefox profile.
+#
+# The profile hides the URL/nav bar via chrome/userChrome.css (enabled through
+# user.js: toolkit.legacyUserProfileCustomizations.stylesheets — camelCase
+# matters, the lowercase spelling is silently ignored) and gets its own
+# WM_CLASS, so Cinnamon groups these windows under their own panel icon
+# (see opencode-output.desktop) instead of merging them into the main Firefox
+# group. Zoom is Firefox's per-URL setting, which persists because the page is
+# always written to the same path (output.html).
 set -euo pipefail
 
-VIEWER="${HOME}/.local/bin/opencode-output-viewer"
-if [ -x "$VIEWER" ]; then
-  exec "$VIEWER" "$@"
-fi
-
-# Fallback: dedicated Firefox profile (URL bar visible; Firefox 157 no longer
-# loads userChrome.css, so the bar cannot be hidden).
 PROFILE="${HOME}/.mozilla/firefox/ciefemfa.opencode-output"
 [ -d "$PROFILE" ] || PROFILE=$(grep -A2 'Name=opencode-output' "${HOME}/.mozilla/firefox/profiles.ini" | awk -F= '/^Path=/{print $2; exit}')
 case "$PROFILE" in
   /*) ;;
   *)  PROFILE="${HOME}/.mozilla/firefox/${PROFILE}" ;;
 esac
-FF=$(command -v firefox-dev || command -v firefox || echo /usr/local/bin/firefox-dev)
-exec "$FF" --class opencode-output --profile "$PROFILE" --new-window "$@"
+
+FF=$(command -v firefox-dev || command -v firefox || true)
+if [ -n "$FF" ] && [ -d "$PROFILE" ]; then
+  exec "$FF" --class opencode-output --profile "$PROFILE" --new-window "$@"
+fi
+
+# Fallback: chromeless GTK viewer (no URL bar at all).
+exec "${HOME}/.local/bin/opencode-output-viewer" "$@"

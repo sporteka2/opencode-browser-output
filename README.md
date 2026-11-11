@@ -82,34 +82,51 @@ default browser handler otherwise.
 
 ### Hide the URL bar in that profile
 
-**Chromeless viewer (recommended).** `bin/opencode-output-viewer` is a small
-GTK3 + WebKitGTK window with no toolbar at all — no URL bar, no tab strip —
-plus its own `WM_CLASS` and a persisted zoom (`Ctrl+wheel`, `Ctrl+-`/`+/0`,
-stored in `config.json`). Install:
+Firefox *does* still load `userChrome.css` — the switch is the
+**`toolkit.legacyUserProfileCustomizations.stylesheets`** pref (camelCase, and
+with the trailing *s*), which has to live in the profile's **`user.js`**. The
+lowercase `prefs.js` spelling is silently ignored, which is what made this look
+dead before.
 
 ```bash
-install -Dm755 bin/opencode-output-viewer ~/.local/bin/
-install -Dm755 bin/opencode-output-browser ~/.local/bin/
+# profile/user.js
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
 ```
 
-`opencode-output-browser` is the entry point the plugin calls: it prefers the
-viewer and falls back to the Firefox profile below when the viewer is missing.
-Both set `--class`/`WM_CLASS` to `opencode-output`, which is what pairs the
-windows with the `.desktop` file shown above.
+```css
+/* profile/chrome/userChrome.css */
+#nav-bar      { display: none !important; }   /* the URL panel */
+#PersonalToolbar { display: none !important; }
+```
 
-> Firefox 157 no longer loads `userChrome.css`, so the toolbar can no longer be
-> hidden with a stylesheet — that is what the viewer replaces. `userChrome` was
-> tried (`chrome/userChrome.css` + `toolkit.legacyuserprofilecustomizations.styleset`)
-> and verified not to be applied.
+Copy both into `<profile>/` (files from `profile/` in this repo), then fully
+close every window of that profile once — `user.js` is only read at startup.
+
+`bin/opencode-output-browser` starts that profile (`--class opencode-output`,
+paired with the `.desktop` file above) and falls back to the GTK viewer when
+the profile or Firefox is missing.
 
 `config.json` (`~/.config/opencode-browser-output/`, created on first launch):
 
 ```json
 {
   "openErrors": false,
-  "zoom": 1.2
+  "zoom": 1.1
 }
 ```
+
+### Chromeless viewer (alternative)
+
+`bin/opencode-output-viewer` is a small GTK3 + WebKitGTK window with no toolbar
+at all, its own `WM_CLASS`, persisted zoom (`Ctrl+wheel`, `Ctrl+-`/`+/0`) and
+the GTK theme pinned into `prefers-color-scheme`. Install with:
+
+```bash
+install -Dm755 bin/opencode-output-viewer bin/opencode-output-browser ~/.local/bin/
+```
+
+The browser entry point uses the Firefox profile by default and the viewer only
+as a fallback; swap the order in `bin/opencode-output-browser` to prefer it.
 
 ## Requirements
 
