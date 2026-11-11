@@ -59,7 +59,27 @@ view.set_zoom_level(load_zoom())
 
 window = Gtk.Window(title="OpenCode Output")
 window.set_wmclass("opencode-output", "OpenCode Output")
-window.set_default_size(1000, 900)
+
+
+def default_size():
+    """Work area in logical pixels.
+
+    GTK multiplies the default size by the HiDPI scale factor, so asking for
+    1000x900 requests 2000x1800 physical, the WM then clamps it to the work
+    area, and WebKit's rendering surface ends up shorter than the widget —
+    which shows up as a strip of the window background at the bottom.
+    """
+    try:
+        screen = Gdk.Screen.get_default()
+        monitor = screen.get_monitor_at_window(screen.get_active_window() or screen.get_root_window())
+        rect = screen.get_monitor_workarea(monitor)
+        scale = screen.get_monitor_scale_factor(monitor)
+        return rect.width // scale, rect.height // scale
+    except Exception:
+        return 960, 540
+
+
+window.set_default_size(*default_size())
 window.add(view)
 
 def apply(level, persist=True):
@@ -105,9 +125,24 @@ def prefers_dark():
     except Exception:
         return False
 
+def debug_page(view, result, user_data=None):
+    try:
+        value = view.run_javascript_finish(result).get_js_value().to_string()
+    except Exception as e:
+        value = f"<no result: {e}>"
+    a = view.get_allocation()
+    print(f"[viewer] widget={a.width}x{a.height} window={window.get_size().width}x{window.get_size().height} zoom={view.get_zoom_level()} page={value}", flush=True)
+
 def on_load_changed(view, event):
     if event != WebKit2.LoadEvent.FINISHED:
         return
+    if os.environ.get("OC_VIEWER_DEBUG"):
+        view.run_javascript(
+            "JSON.stringify({dpr:devicePixelRatio,vw:document.documentElement.clientWidth,"
+            "vh:document.documentElement.clientHeight,ih:innerHeight})",
+            None,
+            debug_page,
+        )
     # WebKitGTK has no xdg-desktop-portal settings provider under Cinnamon, so
     # prefers-color-scheme would always evaluate light. Pin it to the GTK theme.
     scheme = "dark" if prefers_dark() else "light"
