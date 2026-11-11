@@ -41,6 +41,20 @@ const toolNames = new Map();
 const dir = join(homedir(), ".cache", "opencode-browser-output");
 const LOG_FILE = join(dir, "plugin.log");
 const CLAIM_FILE = join(dir, "last-open.json");
+const CONFIG_FILE = join(homedir(), ".config", "opencode-browser-output", "config.json");
+// Errors/interrupts are opt-in: a failing provider (e.g. repeated DNS errors)
+// otherwise opens a window on every failed request.
+let config = { openErrors: false };
+try {
+  mkdirSync(join(homedir(), ".config", "opencode-browser-output"), { recursive: true });
+  const raw = readFileSync(CONFIG_FILE, "utf8");
+  const parsed = JSON.parse(raw);
+  if (parsed && typeof parsed === "object") config = { ...config, ...parsed };
+} catch {}
+try {
+  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
+} catch {}
+debugLog("CONFIG:", JSON.stringify(config));
 const CLAIM_TTL = 15000;
 const MAX_FILES = 500;
 mkdirSync(dir, { recursive: true });
@@ -471,7 +485,7 @@ function openQuestionTool(toolName, input, sessionID, assistantMessageID) {
   void sessionLabel(sessionID || lastSessionID).then((label) => openInBrowser(content, label));
 }
 
-try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.3.3 (dedicated output browser profile)\n`); } catch {}
+try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.3.4 (error windows opt-in, fullscreen windows)\n`); } catch {}
 
 export default {
   id: "browser-output",
@@ -543,6 +557,10 @@ export default {
           }
         } else if (type === "session.execution.failed" || type === "session.execution.interrupted") {
           debugLog("EXECUTION " + (type === "session.execution.failed" ? "FAILED" : "INTERRUPTED") + ":", JSON.stringify(data).slice(0, 800));
+          if (!config.openErrors) {
+            debugLog("SKIP open (error) disabled in config, set openErrors=true to enable");
+            continue;
+          }
           const text = lastKey ? texts.get(lastKey) : "";
           // Errors arrive for every session on the shared event stream. Only show
           // one when we actually have output text from that same session —

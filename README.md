@@ -82,28 +82,34 @@ default browser handler otherwise.
 
 ### Hide the URL bar in that profile
 
-`userChrome` is per-profile, so the main Firefox is untouched. Enable it in
-`<profile>/prefs.js`:
+**Chromeless viewer (recommended).** `bin/opencode-output-viewer` is a small
+GTK3 + WebKitGTK window with no toolbar at all — no URL bar, no tab strip —
+plus its own `WM_CLASS` and a persisted zoom (`Ctrl+wheel`, `Ctrl+-`/`+/0`,
+stored in `config.json`). Install:
 
+```bash
+install -Dm755 bin/opencode-output-viewer ~/.local/bin/
+install -Dm755 bin/opencode-output-browser ~/.local/bin/
 ```
-user_pref("toolkit.legacyuserprofilecustomizations.stylesheet", true);
-```
 
-and put in `<profile>/chrome/userChrome.css`:
+`opencode-output-browser` is the entry point the plugin calls: it prefers the
+viewer and falls back to the Firefox profile below when the viewer is missing.
+Both set `--class`/`WM_CLASS` to `opencode-output`, which is what pairs the
+windows with the `.desktop` file shown above.
 
-```css
-#nav-bar {
-  margin-top: -34px !important;              /* parked out of view ... */
-  transition: margin-top 120ms ease-in-out;
+> Firefox 157 no longer loads `userChrome.css`, so the toolbar can no longer be
+> hidden with a stylesheet — that is what the viewer replaces. `userChrome` was
+> tried (`chrome/userChrome.css` + `toolkit.legacyuserprofilecustomizations.styleset`)
+> and verified not to be applied.
+
+`config.json` (`~/.config/opencode-browser-output/`, created on first launch):
+
+```json
+{
+  "openErrors": false,
+  "zoom": 1.2
 }
-#navigator-toolbox:hover > #nav-bar,
-#nav-bar:focus-within {                      /* ... revealed on top hover / Ctrl+L */
-  margin-top: 0 !important;
-}
 ```
-
-Then fully close that profile's windows once (the pref and the CSS are only read
-at startup).
 
 ## Requirements
 
