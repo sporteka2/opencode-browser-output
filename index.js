@@ -310,7 +310,7 @@ function openInBrowser(content, label) {
         --hr-color: #333;
       }
     }
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 1rem; line-height: 1.7; background: var(--bg); color: var(--fg); max-width: 900px; margin: 0 auto; overflow-wrap: break-word; }
+    html, body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 1rem; line-height: 1.7; background: var(--bg); color: var(--fg); max-width: 900px; margin: 0 auto; overflow-wrap: break-word; }
     a { color: var(--link); text-decoration: none; }
     a:hover { text-decoration: underline; }
     h1 { font-size: 1.8rem; font-weight: 600; margin: 1.5rem 0 0.5rem; border-bottom: 1px solid var(--hr-color); padding-bottom: 0.3rem; }
@@ -485,7 +485,7 @@ function openQuestionTool(toolName, input, sessionID, assistantMessageID) {
   void sessionLabel(sessionID || lastSessionID).then((label) => openInBrowser(content, label));
 }
 
-try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.3.4 (error windows opt-in, fullscreen windows)\n`); } catch {}
+try { appendFileSync(LOG_FILE, `[${new Date().toISOString()}] PLUGIN LOADED v2.3.5 (canvas background, smooth scroll off)\n`); } catch {}
 
 export default {
   id: "browser-output",

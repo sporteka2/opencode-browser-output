@@ -125,6 +125,11 @@ window.connect("scroll-event", on_scroll)
 window.connect("destroy", Gtk.main_quit)
 
 view.load_uri(target)
+
+# Paint the theme background before the page CSS arrives, otherwise the fresh
+# window flashes white (most visible at the bottom, where the page is shorter
+# than the window).
+view.set_background_color(Gdk.RGBA(0.102, 0.102, 0.102, 1.0) if prefers_dark() else Gdk.RGBA(1.0, 1.0, 1.0, 1.0))
 view.connect("load-changed", on_load_changed)
 window.show_all()
 Gtk.main()
