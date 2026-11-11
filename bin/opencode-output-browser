@@ -28,19 +28,15 @@ fi
 before=$(wmctrl -lx 2>/dev/null | awk '$3 ~ /Navigator\.opencode-output$/ {print $1}' | sort)
 "$FF" --class opencode-output --profile "$PROFILE" --new-window "$@" >/dev/null 2>&1 &
 
-# Wait for the new window, then drop the WM titlebar (decorations).
+# Wait for the new window, then clear _MOTIF_WM_HINTS so Muffin draws the
+# titlebar with the minimise/maximise/close buttons again (Firefox leaves the
+# "no decorations" hint behind, which silently removed them).
 for _ in $(seq 1 60); do
   sleep 0.25
   now=$(wmctrl -lx 2>/dev/null | awk '$3 ~ /Navigator\.opencode-output$/ {print $1}' | sort)
   new=$(comm -13 <(printf '%s\n' "$before") <(printf '%s\n' "$now") | head -1)
   [ -n "$new" ] || continue
-  xprop -id "$new" -f _MOTIF_WM_HINTS 32c -set _MOTIF_WM_HINTS "0x2, 0x0, 0x0, 0x0, 0x0" 2>/dev/null || true
-  # Give the WM a moment, then verify it actually took effect.
-  sleep 0.5
-  hints=$(xprop -id "$new" _MOTIF_WM_HINTS 2>/dev/null || true)
-  case "$hints" in
-    *"0x2, 0x0"*) exit 0 ;;
-  esac
+  xprop -id "$new" -remove _MOTIF_WM_HINTS 2>/dev/null || true
   exit 0
 done
 exit 0

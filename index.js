@@ -351,12 +351,9 @@ function openInBrowser(content, label) {
 </html>`;
 
   prune();
-  // Firefox stores its zoom preference per URL, so the page is always written
-  // to the same path (a fresh window opens on every run, reusing the zoom).
-  // The timestamped copy is kept only as history.
-  const stamp = Date.now();
-  const file = join(dir, "output.html");
-  try { writeFileSync(join(dir, `output-${stamp}.html`), html); } catch {}
+  // One file per output: refreshing a window must keep showing that output,
+  // so the page can never be overwritten by a later one.
+  const file = join(dir, `output-${Date.now()}.html`);
   try {
     writeFileSync(file, html);
   } catch (e) {
