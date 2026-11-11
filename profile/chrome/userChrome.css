@@ -1,8 +1,37 @@
 /* OpenCode output profile:
-   - the titlebar strip (Firefox's own window buttons live in #TabsToolbar -
-     Cinnamon does not decorate Firefox here) stays
-   - the tab elements themselves are hidden
+   - Firefox's own titlebar strip and its CSD buttons collapsed to nothing
+     (Muffin draws the real titlebar with the window buttons instead)
+   - tab elements hidden as well
    - URL/nav bar hidden, returns on Ctrl+L (focus) */
+
+#navigator-toolbox,
+#titlebar,
+#TabsToolbar {
+  background: transparent !important;
+  appearance: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+#titlebar,
+#TabsToolbar {
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+.titlebar-buttonbox-container,
+.titlebar-buttonbox,
+#window-controls,
+#minimize-button,
+#restore-button,
+#close-button,
+#TabsToolbar .titlebar-spacer {
+  display: none !important;
+}
 
 #tabbrowser-tabs,
 .tabbrowser-tab,
@@ -13,8 +42,7 @@
 .tab-icon-image,
 .tab-close-button,
 #tabs-newtab-button,
-#alltabs-button,
-#TabsToolbar .titlebar-spacer {
+#alltabs-button {
   display: none !important;
 }
 

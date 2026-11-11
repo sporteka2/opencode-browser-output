@@ -26,7 +26,10 @@ if [ -z "$FF" ] || [ ! -d "$PROFILE" ]; then
 fi
 
 before=$(wmctrl -lx 2>/dev/null | awk '$3 ~ /Navigator\.opencode-output$/ {print $1}' | sort)
-"$FF" --class opencode-output --profile "$PROFILE" --new-window "$@" >/dev/null 2>&1 &
+# GTK_CSD=0 makes Firefox stop drawing its own titlebar, so Muffin draws the
+# real one (with the window buttons); without it Firefox keeps a "no
+# decorations" hint and the window has no WM titlebar at all.
+GTK_CSD=0 "$FF" --class opencode-output --profile "$PROFILE" --new-window "$@" >/dev/null 2>&1 &
 
 # Wait for the new window, then clear _MOTIF_WM_HINTS so Muffin draws the
 # titlebar with the minimise/maximise/close buttons again (Firefox leaves the
