@@ -52,7 +52,9 @@ target = sys.argv[1]
 if not target.startswith(("file://", "http://", "https://")):
     target = "file://" + os.path.abspath(target)
 
-view = WebKit2.WebView()
+settings = WebKit2.Settings()
+settings.set_property("enable-smooth-scrolling", False)
+view = WebKit2.WebView(settings=settings)
 view.set_zoom_level(load_zoom())
 
 window = Gtk.Window(title="OpenCode Output")
@@ -112,7 +114,10 @@ def on_load_changed(view, event):
     view.run_javascript(
         "(function(){var m=document.createElement('meta');"
         "m.name='color-scheme';m.content='" + scheme + "';"
-        "document.head.appendChild(m);})();"
+        "document.head.appendChild(m);"
+        "var s=document.createElement('style');"
+        "s.textContent='html{scroll-behavior:auto !important}';"
+        "document.head.appendChild(s);})();"
     )
 
 window.connect("key-press-event", on_key)
