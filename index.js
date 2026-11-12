@@ -331,15 +331,14 @@ async function openInBrowser(content, label) {
   const withTables = markdownTableToHtml(content);
   const processedContent = markdownToHtml(withTables);
 
-  const sessionLabelHtml = label
-    ? `<div class="session">${escapeHtml(label)}</div>`
-    : "";
+  // The session name goes to the window title, not onto the page.
+  const title = (label && label.trim()) || "OpenCode Output";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>OpenCode Output</title>
+  <title>${escapeHtml(title)}</title>
   <style>${zoomStyle}
     :root {
       --bg: #fff;
@@ -401,10 +400,9 @@ async function openInBrowser(content, label) {
     hr { border: none; border-top: 1px solid var(--hr-color); margin: 1.5rem 0; }
     p { margin: 0.5rem 0; }
     p:first-child, h1:first-child, h2:first-child, h3:first-child { margin-top: 0; }
-    .session { font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace; font-size: 0.72rem; color: var(--muted); text-align: right; margin: -1rem -1rem 0.25rem; padding: 0 0.4rem; line-height: 1.2; user-select: all; }
   </style>
 </head>
-<body>${sessionLabelHtml}${processedContent}</body>
+<body>${processedContent}</body>
 </html>`;
 
   prune();

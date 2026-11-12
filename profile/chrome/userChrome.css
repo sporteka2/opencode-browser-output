@@ -1,3 +1,11 @@
+/* Hide the status/link-preview panel: a page has no URL bar, so the hovered URL
+   must not appear in the corner either. */
+#statuspanel,
+#statuspanel-label,
+.statuspanel-label {
+  display: none !important;
+}
+
 /* OpenCode output profile:
    - Firefox's own titlebar strip and its CSD buttons collapsed to nothing
      (Muffin draws the real titlebar with the window buttons instead)
