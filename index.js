@@ -156,6 +156,17 @@ function parseRow(line) {
   return line.slice(1, -1).split("|").map(c => c.trim());
 }
 
+// Links leave through a URI scheme handled by opencode-open-url (see
+// ~/.local/share/applications/opencode-output-protocol.desktop), which runs
+// xdg-open, so they open in the default browser instead of the minimal window.
+function browserUrl(url) {
+  try {
+    return "opencode-open://" + encodeURIComponent(url);
+  } catch {
+    return url;
+  }
+}
+
 function markdownToHtml(text) {
   const tables = [];
   text = text.replace(/<table>[\s\S]*?<\/table>/g, (m) => {
@@ -174,13 +185,13 @@ function markdownToHtml(text) {
   const anchors = [];
   text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
     const token = `\u0000LINK${anchors.length}\u0000`;
-    anchors.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`);
+    anchors.push(`<a href="${escapeHtml(browserUrl(url))}">${escapeHtml(label)}</a>`);
     return token;
   });
   const urlRegex = /(https?:\/\/[^\s"'<>()*`]+[^\s"'<>),.;:!?*_`])/g;
   text = text.replace(urlRegex, (url) => {
     const token = `\u0000LINK${anchors.length}\u0000`;
-    anchors.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`);
+    anchors.push(`<a href="${escapeHtml(browserUrl(url))}">${escapeHtml(url)}</a>`);
     return token;
   });
 

@@ -136,3 +136,20 @@ as a fallback; swap the order in `bin/opencode-output-browser` to prefer it.
 ## License
 
 MIT
+### Open links in the default browser
+
+The output page lives in a window without a URL bar, so links must not open
+there - they go to the system default browser instead. A page cannot launch
+another browser by itself, so links are wrapped into the `opencode-open://`
+URI scheme and the OS dispatches it to `bin/opencode-open-url`
+(`opencode-output-protocol.desktop` in this repo):
+
+```bash
+install -Dm755 bin/opencode-open-url ~/.local/bin/
+install -Dm644 opencode-output-protocol.desktop ~/.local/share/applications/
+xdg-mime default opencode-output-protocol.desktop x-scheme-handler/opencode-open
+update-desktop-database ~/.local/share/applications
+```
+
+The handler decodes the URL and runs `xdg-open`, so the link opens in your
+default browser.

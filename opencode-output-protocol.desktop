@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=OpenCode Output Link Handler
+Comment=Opens output-page links in the default browser
+Exec=/home/user/.local/bin/opencode-open-url %u
+TryExec=/home/user/.local/bin/opencode-open-url
+Icon=opencode-output
+NoDisplay=true
+Terminal=false
+Categories=Utility;
+MimeType=x-scheme-handler/opencode-open;

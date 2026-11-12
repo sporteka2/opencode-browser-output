@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Received as: opencode-open://<urlencoded-url>  ->  open in the default browser.
+set -euo pipefail
+raw="${1#opencode-open://}"
+case "$raw" in
+  http://*|https://*|file://*) url="$raw" ;;
+  *) url=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.unquote(sys.argv[1]))' "$raw") ;;
+esac
+echo "[$(date -Is)] $1 -> $url" >> ~/.cache/opencode-browser-output/link-handler.log
+exec xdg-open "$url"
