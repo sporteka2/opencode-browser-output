@@ -24,7 +24,10 @@ async function sessionLabel(sessionID) {
     title = session?.title || "";
     if (title) titles.set(sessionID, title);
   } catch {}
-  return title || titles.get(sessionID) || sessionID;
+  const label = title || titles.get(sessionID) || sessionID;
+  // OpenCode renames a session "auto-recovery from <id>" when it recovers a
+  // hung step. That is not a session name, so fall back to the default title.
+  return /^auto-?recovery\b/i.test(label) ? "" : label;
 }
 // Tool names that ask the user a question (OpenCode built-in `question` tool
 // and the question tools provided by the octto plugin).
