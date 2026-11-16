@@ -286,10 +286,20 @@ function formatError(err, fallback) {
 // start at 100%. Read the last zoom the user set on any output page from
 // Firefox's content-prefs.sqlite and bake it into the new page, so the scale
 // carries over. The page itself is zoomed, Firefox's own per-URL zoom stays 1.
+// Effective zoom = browser zoom x the zoom baked into that page, because
+// Firefox's own per-URL zoom starts at 1 for every new output file.
 async function lastBrowserZoom() {
   try {
     const mod = await import("bun:sqlite");
     const base = join(homedir(), ".mozilla", "firefox");
+    const baked = (file) => {
+      try {
+        const m = readFileSync(file, "utf8").match(/html \{ zoom: ([0-9.]+);/);
+        return m ? Number(m[1]) : 1;
+      } catch {
+        return 1;
+      }
+    };
     let zoom = 1;
     let profiles = [];
     try {
@@ -308,13 +318,16 @@ async function lastBrowserZoom() {
         const db = new mod.Database(tmp, { readonly: true });
         const rows = db
           .query(
-            "SELECT p.value AS value FROM prefs p JOIN groups g ON g.id = p.groupID JOIN settings s ON s.id = p.settingID WHERE s.name = 'browser.content.full-zoom' AND g.name LIKE '%opencode-browser-output%' ORDER BY p.timestamp DESC LIMIT 1",
+            "SELECT g.name AS name, p.value AS value, p.timestamp AS ts FROM prefs p JOIN groups g ON g.id = p.groupID JOIN settings s ON s.id = p.settingID WHERE s.name = 'browser.content.full-zoom' AND g.name LIKE '%opencode-browser-output%' ORDER BY p.timestamp DESC LIMIT 1",
           )
           .all();
         db.close();
         for (const r of rows) {
-          const z = Number(r.value);
-          if (Number.isFinite(z) && z >= 0.3 && z <= 5) zoom = Math.max(zoom, z);
+          const browserZoom = Number(r.value);
+          if (!Number.isFinite(browserZoom) || browserZoom <= 0) continue;
+          const file = String(r.name).replace(/^file:\/\//, "");
+          const effective = browserZoom * baked(file);
+          if (Number.isFinite(effective) && effective >= 0.3 && effective <= 5) zoom = Math.max(zoom, effective);
         }
       } catch {}
       try { unlinkSync(tmp); } catch {}
