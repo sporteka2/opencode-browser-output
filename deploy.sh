@@ -41,6 +41,17 @@ else
   echo "deployed: $DEST"
 fi
 
-opencode reload
+OPENCODE_BIN="${OPENCODE_BIN:-$(command -v opencode || true)}"
+if [[ -z "$OPENCODE_BIN" ]]; then
+  for candidate in "${HOME}/.npm-global/bin/opencode" "${HOME}/.opencode/bin/opencode" "${HOME}/.local/bin/opencode"; do
+    if [[ -x "$candidate" ]]; then OPENCODE_BIN="$candidate"; break; fi
+  done
+fi
+if [[ -z "$OPENCODE_BIN" ]]; then
+  echo "error: opencode CLI not found (set OPENCODE_BIN)" >&2
+  exit 1
+fi
+
+"$OPENCODE_BIN" reload
 echo "reloaded. tail of plugin log:"
 tail -4 "${HOME}/.cache/opencode-browser-output/plugin.log" 2>/dev/null || true

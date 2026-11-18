@@ -447,11 +447,15 @@ async function openInBrowser(content, label) {
   // Fire-and-forget: execSync(xdg-open) blocked the event loop for up to its
   // timeout and died with ETIMEDOUT whenever the browser was busy — the file
   // was already written, so the launch itself must not be able to fail the open.
+  // Not detached: the launcher exits as soon as the window exists (or after
+  // ~15s with code 1), so its exit code tells us whether a window really opened.
   try {
-    const child = spawn(cmd, { shell: true, stdio: "ignore", detached: true });
+    const child = spawn(cmd, { shell: true, stdio: "ignore" });
     child.on("error", (e) => debugLog("Failed to open browser:", e.message));
-    child.unref();
-    debugLog("Opened:", file);
+    child.on("exit", (code) => {
+      if (code === 0) debugLog("Opened:", file);
+      else debugLog("Failed to open browser: launcher exit", code, "(see launcher.log)");
+    });
   } catch (e) {
     debugLog("Failed to open browser:", e.message);
   }

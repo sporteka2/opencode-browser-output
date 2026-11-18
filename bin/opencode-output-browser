@@ -13,6 +13,25 @@
 # missing.
 set -euo pipefail
 
+# The plugin is spawned by the opencode server, which may run without a
+# graphical session in its environment (no DISPLAY/XAUTHORITY/DBUS). Recover
+# them, otherwise Firefox exits with "Cannot open display".
+if [ -z "${DISPLAY:-}" ]; then
+  for sock in /tmp/.X11-unix/X*; do
+    [ -S "$sock" ] || continue
+    DISPLAY=":${sock##*/X}"
+    break
+  done
+  export DISPLAY="${DISPLAY:-:0}"
+fi
+if [ -z "${XAUTHORITY:-}" ] && [ -f "${HOME}/.Xauthority" ]; then
+  export XAUTHORITY="${HOME}/.Xauthority"
+fi
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+  bus="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus"
+  if [ -S "$bus" ]; then export DBUS_SESSION_BUS_ADDRESS="unix:path=${bus}"; fi
+fi
+
 PROFILE="${HOME}/.mozilla/firefox/ciefemfa.opencode-output"
 [ -d "$PROFILE" ] || PROFILE=$(grep -A2 'Name=opencode-output' "${HOME}/.mozilla/firefox/profiles.ini" | awk -F= '/^Path=/{print $2; exit}')
 case "$PROFILE" in
@@ -26,10 +45,13 @@ if [ -z "$FF" ] || [ ! -d "$PROFILE" ]; then
 fi
 
 before=$(wmctrl -lx 2>/dev/null | awk '$3 ~ /Navigator\.opencode-output$/ {print $1}' | sort)
+LOG="${HOME}/.cache/opencode-browser-output/launcher.log"
+mkdir -p "$(dirname "$LOG")"
 # GTK_CSD=0 makes Firefox stop drawing its own titlebar, so Muffin draws the
 # real one (with the window buttons); without it Firefox keeps a "no
 # decorations" hint and the window has no WM titlebar at all.
-GTK_CSD=0 "$FF" --class opencode-output --profile "$PROFILE" --new-window "$@" >/dev/null 2>&1 &
+GTK_CSD=0 "$FF" --class opencode-output --profile "$PROFILE" --new-window "$@" >>"$LOG" 2>&1 &
+ffpid=$!
 
 # Wait for the new window, then clear _MOTIF_WM_HINTS so Muffin draws the
 # titlebar with the minimise/maximise/close buttons again (Firefox leaves the
@@ -42,4 +64,10 @@ for _ in $(seq 1 60); do
   xprop -id "$new" -remove _MOTIF_WM_HINTS 2>/dev/null || true
   exit 0
 done
-exit 0
+
+# No window appeared: leave a trace next to the plugin log so a silent failure
+# (e.g. the server lost DISPLAY) is diagnosable.
+state="exited"
+if kill -0 "$ffpid" 2>/dev/null; then state="still running"; fi
+echo "[$(date -Is)] no window after 15s ($state, pid $ffpid, DISPLAY=$DISPLAY XAUTHORITY=${XAUTHORITY:-unset}) :: $*" >>"$LOG"
+exit 1
